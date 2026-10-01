@@ -2,8 +2,10 @@ name: Forecast on Metaculus Cup
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 0 */2 * *" # runs at midnight every 2 days
+  # Automatic schedule turned off: this bot runs manually only for now.
+  # To re-enable, remove the leading '# ' from the two lines below.
+  # schedule:
+  #   - cron: "0 0 */2 * *" # runs at midnight every 2 days
 
 # Add concurrency group to prevent parallel runs
 concurrency:

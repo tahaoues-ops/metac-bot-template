@@ -2,8 +2,10 @@ name: Forecast on new AI tournament questions
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "7,27,47 * * * *" # every 20 min, offset off the hour. Make sure to skip already-forecasted questions!
+  # Automatic schedule turned off: this bot runs manually only for now.
+  # To re-enable, remove the leading '# ' from the two lines below.
+  # schedule:
+  #   - cron: "7,27,47 * * * *" # every 20 min, offset off the hour. Make sure to skip already-forecasted questions!
 
 # Add concurrency group to prevent parallel runs
 concurrency:
