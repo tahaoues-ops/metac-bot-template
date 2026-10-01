@@ -1,0 +1,4 @@
+# Ablation: one critique round instead of two
+extends: ../default.yaml
+critique:
+  rounds: 1

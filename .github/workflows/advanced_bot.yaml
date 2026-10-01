@@ -1,0 +1,86 @@
+name: Advanced bot (manual)
+
+# Runs the advanced bot on Metaculus questions. MANUAL ONLY for now.
+#
+# Publishing needs ALL of: the `publish` input ticked, publish_to_metaculus: true in the
+# chosen config, and the METACULUS_TOKEN secret. By default nothing is published.
+#
+# To run it periodically later, remove the leading '# ' from the two schedule lines
+# (scheduled runs use the defaults below: test_questions, dry run).
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Which questions"
+        type: choice
+        options: [test_questions, tournament, urls]
+        default: test_questions
+      urls:
+        description: "urls mode: Metaculus question URLs separated by spaces"
+        required: false
+        default: ""
+      config:
+        description: "Config name (advanced_bot/configs or configs/ablations)"
+        required: false
+        default: default
+      limit:
+        description: "Forecast at most N questions (empty = all). Keeps test runs cheap."
+        required: false
+        default: "3"
+      publish:
+        description: "Publish forecasts to Metaculus (also needs publish_to_metaculus: true in the config)"
+        type: boolean
+        default: false
+  # schedule:
+  #   - cron: "17 */6 * * *"   # every 6 hours
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  forecast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      - run: poetry install --no-interaction --no-root
+      - name: Run advanced bot
+        env:
+          METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          ASKNEWS_CLIENT_ID: ${{ secrets.ASKNEWS_CLIENT_ID }}
+          ASKNEWS_SECRET: ${{ secrets.ASKNEWS_SECRET }}
+          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+          FUTURESEARCH_API_KEY: ${{ secrets.FUTURESEARCH_API_KEY }}
+          IN_MODE: ${{ inputs.mode || 'test_questions' }}
+          IN_URLS: ${{ inputs.urls }}
+          IN_CONFIG: ${{ inputs.config || 'default' }}
+          IN_PUBLISH: ${{ inputs.publish || false }}
+          IN_LIMIT: ${{ inputs.limit }}
+        run: |
+          args=(--mode "$IN_MODE" --config "$IN_CONFIG")
+          if [ "$IN_MODE" = "urls" ]; then
+            for u in $IN_URLS; do args+=(--url "$u"); done
+          fi
+          [ -n "$IN_LIMIT" ] && args+=(--limit "$IN_LIMIT")
+          [ "$IN_PUBLISH" = "true" ] && args+=(--publish)
+          poetry run python run_advanced.py "${args[@]}"
+      - name: Save logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: advanced-bot-logs
+          path: logs/advanced/
+          if-no-files-found: ignore
+          retention-days: 30

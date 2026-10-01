@@ -17,6 +17,13 @@ python geo_forecaster.py --question-file questions/example_question.json
 ```
 Step-by-step guide in Arabic: [GEO_FORECASTER_AR.md](GEO_FORECASTER_AR.md). In this fork the automatic schedules of the tournament workflows are turned off; everything runs manually.
 
+## Advanced bot (research agent, multi-model ensemble, critique loop, evaluation)
+`run_advanced.py` + `advanced_bot/` — a `ForecastBot` subclass with a tool-using research agent, 3+ forecasters from
+different model families with a critic loop, code-level checks, weighted aggregation, and `eval.py` for
+back-testing on resolved questions (Brier/log/CRPS/baseline scores, bootstrap comparisons, ablations, ensemble
+weights). Manual only, never publishes by default. Docs: [advanced_bot/README.md](advanced_bot/README.md) ·
+Arabic guide: [ADVANCED_BOT_AR.md](ADVANCED_BOT_AR.md).
+
 ## 30min Video Tutorial
 This tutorial shows you how to set up our template bot so you can start forecasting in the tournament.
 

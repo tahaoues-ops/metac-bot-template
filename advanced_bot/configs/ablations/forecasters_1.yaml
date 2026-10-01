@@ -1,0 +1,4 @@
+# Ablation: 1 forecaster (shares stored forecasts with default)
+extends: ../default.yaml
+ensemble:
+  total_forecasters: 1

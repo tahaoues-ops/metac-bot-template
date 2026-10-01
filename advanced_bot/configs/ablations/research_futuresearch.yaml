@@ -1,0 +1,5 @@
+# Section 5: research with FutureSearch MCP only (configure futuresearch: in default.yaml)
+extends: ../default.yaml
+research:
+  set_name: futuresearch_only
+  tools: [futuresearch]

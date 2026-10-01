@@ -1,0 +1,21 @@
+# Section 2: diverse, weighted ensemble — 4 model families x 2 samples = 8 forecasters.
+# Each forecaster runs the full critique loop, so this costs ~8/3 of default per question.
+# Fit weights + extremizing with:  python eval.py ensemble --config ensemble
+# then paste the printed `aggregation:` block here (or into default.yaml).
+extends: default.yaml
+
+ensemble:
+  total_forecasters: 8
+  members:
+    - {name: claude, model: openrouter/anthropic/claude-sonnet-4.5}
+    - {name: gpt, model: openrouter/openai/gpt-5}
+    - {name: gemini, model: openrouter/google/gemini-2.5-pro}
+    - {name: grok, model: openrouter/x-ai/grok-4}
+
+aggregation:
+  binary: weighted_logodds
+  multiple_choice: weighted_logodds
+  numeric: weighted_quantile_mean
+  extremize: 1.0
+  weights: {}          # equal until fitted
+  min_weight: 0.05

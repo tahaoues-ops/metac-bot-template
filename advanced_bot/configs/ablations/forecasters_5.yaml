@@ -1,0 +1,4 @@
+# Ablation: 5 forecasters (2 claude, 2 gpt, 1 gemini); reuses default's 3 and adds 2
+extends: ../default.yaml
+ensemble:
+  total_forecasters: 5

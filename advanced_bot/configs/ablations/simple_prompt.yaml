@@ -1,0 +1,3 @@
+# Ablation: simple prompt instead of the (a)-(h) template
+extends: ../default.yaml
+prompt_style: simple

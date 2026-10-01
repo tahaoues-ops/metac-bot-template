@@ -1,0 +1,113 @@
+name: Advanced bot evaluation (manual)
+
+# Back-tests the advanced bot on resolved questions. Never publishes anything.
+# eval_data/ (questions + frozen research) and eval_runs/ (stored forecasts) are kept
+# between runs with the Actions cache, so each run only pays for what is new.
+#
+# SPENDING GUARD: unless `confirm_spend` is ticked, LLM work is NOT run; the log only
+# tells you how many questions / forecaster runs it would take.
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: "What to run"
+        type: choice
+        options: [collect-and-research, score, compare, ablate, ensemble, research-sets, export-rl]
+        default: collect-and-research
+      configs:
+        description: "Config name(s), space separated. Empty = default (ensemble: ensemble). compare needs two"
+        required: false
+        default: ""
+      n:
+        description: "collect: number of resolved questions"
+        required: false
+        default: "300"
+      limit:
+        description: "Only the first N questions (empty = all). Start small, e.g. 20"
+        required: false
+        default: "20"
+      confirm_spend:
+        description: "I accept the LLM/search costs of this run"
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      - run: poetry install --no-interaction --no-root
+      - name: Restore eval data
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            eval_data
+            eval_runs
+          key: eval-${{ github.run_id }}
+          restore-keys: eval-
+      - name: Run evaluation
+        env:
+          METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          ASKNEWS_CLIENT_ID: ${{ secrets.ASKNEWS_CLIENT_ID }}
+          ASKNEWS_SECRET: ${{ secrets.ASKNEWS_SECRET }}
+          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+          FUTURESEARCH_API_KEY: ${{ secrets.FUTURESEARCH_API_KEY }}
+          IN_COMMAND: ${{ inputs.command }}
+          IN_CONFIGS: ${{ inputs.configs }}
+          IN_N: ${{ inputs.n }}
+          IN_LIMIT: ${{ inputs.limit }}
+          IN_SPEND: ${{ inputs.confirm_spend }}
+        run: |
+          mkdir -p eval_runs
+          common=()
+          for c in $IN_CONFIGS; do common+=(--config "$c"); done
+          [ -n "$IN_LIMIT" ] && common+=(--limit "$IN_LIMIT")
+          if [ "$IN_SPEND" = "true" ]; then common+=(--yes); fi
+          case "$IN_COMMAND" in
+            collect-and-research)
+              [ -f eval_data/questions.jsonl ] || poetry run python eval.py collect --n "$IN_N"
+              if [ "$IN_SPEND" = "true" ]; then
+                poetry run python eval.py research "${common[@]}"
+              else
+                echo "Research not run: tick confirm_spend to pay for it."
+              fi ;;
+            compare) poetry run python eval.py compare "${common[@]}" ;;
+            *) poetry run python eval.py "$IN_COMMAND" "${common[@]}" | tee eval_runs/last_output.txt ;;
+          esac
+      - name: Save eval data
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            eval_data
+            eval_runs
+          key: eval-${{ github.run_id }}
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-reports
+          path: |
+            eval_runs/*.md
+            eval_runs/*.png
+            eval_runs/*.yaml
+            eval_runs/*.txt
+            eval_runs/*.jsonl
+          if-no-files-found: ignore
+          retention-days: 30

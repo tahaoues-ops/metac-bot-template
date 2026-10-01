@@ -1,0 +1,4 @@
+# Ablation: no critique loop (draft only)
+extends: ../default.yaml
+critique:
+  enabled: false

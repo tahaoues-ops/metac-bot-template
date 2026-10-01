@@ -1,10 +1,15 @@
 name: Geopolitical forecast (manual)
 
-# Runs ONLY when you click "Run workflow". Never publishes to Metaculus:
-# it does not receive METACULUS_TOKEN at all.
+# Runs ONLY when you click "Run workflow". Choose the simple or the advanced bot.
+# Never publishes to Metaculus: it does not receive METACULUS_TOKEN at all.
 on:
   workflow_dispatch:
     inputs:
+      bot:
+        description: "simple = geo_forecaster.py (one web search model) | advanced = advanced_bot (research agent, 3 models, critique loop)"
+        type: choice
+        options: [simple, advanced]
+        default: simple
       question:
         description: "Yes/no question (leave empty to use questions/example_question.json)"
         required: false
@@ -18,7 +23,7 @@ on:
         required: false
         default: ""
       runs:
-        description: "Number of independent forecasts (1-5)"
+        description: "simple bot only: number of independent forecasts (1-5)"
         required: false
         default: "3"
 
@@ -37,9 +42,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install dependencies
+      # ---------------- simple bot ----------------
+      - name: Install dependencies (simple)
+        if: inputs.bot == 'simple'
         run: pip install requests python-dotenv
-      - name: Run forecaster
+      - name: Run simple forecaster
+        if: inputs.bot == 'simple'
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GEO_MODEL: ${{ vars.GEO_MODEL }}
@@ -59,11 +67,48 @@ jobs:
             args+=(--question-file questions/example_question.json)
           fi
           python geo_forecaster.py "${args[@]}"
+
+      # ---------------- advanced bot ----------------
+      - name: Install poetry (advanced)
+        if: inputs.bot == 'advanced'
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      - name: Install dependencies (advanced)
+        if: inputs.bot == 'advanced'
+        run: poetry install --no-interaction --no-root
+      - name: Run advanced forecaster
+        if: inputs.bot == 'advanced'
+        env:
+          # No METACULUS_TOKEN here: custom questions are never published.
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          ASKNEWS_CLIENT_ID: ${{ secrets.ASKNEWS_CLIENT_ID }}
+          ASKNEWS_SECRET: ${{ secrets.ASKNEWS_SECRET }}
+          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+          FUTURESEARCH_API_KEY: ${{ secrets.FUTURESEARCH_API_KEY }}
+          IN_QUESTION: ${{ inputs.question }}
+          IN_DATE: ${{ inputs.resolution_date }}
+          IN_CRITERIA: ${{ inputs.resolution_criteria }}
+        run: |
+          args=(--mode custom)
+          if [ -n "$IN_QUESTION" ]; then
+            args+=(--question "$IN_QUESTION" --resolution-date "$IN_DATE")
+            [ -n "$IN_CRITERIA" ] && args+=(--resolution-criteria "$IN_CRITERIA")
+          else
+            args+=(--question-file questions/example_question.json)
+          fi
+          poetry run python run_advanced.py "${args[@]}"
+          # show the full report (with the Arabic summary) on the run page
+          shopt -s nullglob
+          for f in logs/advanced/*/*.md; do cat "$f" >> "$GITHUB_STEP_SUMMARY"; done
       - name: Save results as a downloadable file
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: geo-forecast-results
-          path: results/
+          path: |
+            results/
+            logs/advanced/
           if-no-files-found: ignore
           retention-days: 30

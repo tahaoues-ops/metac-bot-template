@@ -1,0 +1,5 @@
+# Section 5: research with AskNews + FutureSearch
+extends: ../default.yaml
+research:
+  set_name: asknews_futuresearch
+  tools: [asknews, futuresearch]

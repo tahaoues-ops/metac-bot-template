@@ -1,0 +1,4 @@
+# Ablation: time-to-event mixture for binary questions
+extends: ../default.yaml
+mixture:
+  binary_time_to_event: true

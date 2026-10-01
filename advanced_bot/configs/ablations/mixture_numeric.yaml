@@ -1,0 +1,4 @@
+# Ablation: mixture-of-scenarios tool for numeric/date questions
+extends: ../default.yaml
+mixture:
+  numeric: true

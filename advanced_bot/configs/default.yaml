@@ -1,0 +1,105 @@
+# =============================================================================
+# Advanced bot — the ONE settings file.
+#
+# Every experiment config (configs/ablations/*.yaml, configs/ensemble.yaml ...)
+# starts with `extends: default.yaml` and only lists what it changes.
+#
+# Model names use LiteLLM format. With only OPENROUTER_API_KEY set, keep the
+# `openrouter/...` prefix. Check current names at https://openrouter.ai/models
+# =============================================================================
+
+name: default
+
+# Safety switch. Nothing is ever posted to Metaculus unless this is true AND
+# you pass --publish on the command line.
+publish_to_metaculus: false
+
+models:
+  researcher: openrouter/anthropic/claude-sonnet-4.5
+  summarizer: openrouter/openai/gpt-5-mini        # cheaper model for the 2-paragraph summary
+  critic: openrouter/openai/gpt-5
+  leak_judge: openrouter/openai/gpt-5-mini        # eval only: flags research that reveals the answer
+  verifier: openrouter/openai/gpt-5-mini          # used when checks.verification = verify
+
+llm:
+  timeout_seconds: 240
+  max_retries: 2            # network/API retries per call
+  forecaster_temperature: 0.7
+  researcher_temperature: 0.2
+
+research:
+  # Research set name. Cached eval research is stored under eval_data/research/<set_name>/,
+  # so configs that use different tools must use different set names.
+  set_name: asknews_web_wiki
+  min_iterations: 4         # the researcher must make at least this many tool calls
+  max_iterations: 6         # ... and at most this many
+  tools: [asknews, web, wikipedia]   # also available: futuresearch (see below)
+  # Lookback window = clamp(lookback_factor * days_until_resolution, min, max), ending at the
+  # cutoff (now for live runs, the question's open date in eval).
+  lookback_factor: 2.0
+  lookback_min_days: 30
+  lookback_max_days: 365
+  results_per_search: 8
+  asknews_rate_limit_seconds: 11      # free AskNews tier: ~1 call / 10 s
+  web_provider: exa                   # exa supports date filtering (needed for fair eval)
+
+futuresearch:
+  # Optional FutureSearch MCP server. Off unless "futuresearch" is in research.tools.
+  # Fill these from FutureSearch's own MCP docs; the key is read from the env var named here.
+  transport: streamable_http          # streamable_http | stdio
+  url: ""                             # e.g. the MCP endpoint URL FutureSearch gives you
+  api_key_env: FUTURESEARCH_API_KEY
+  command: ""                         # for stdio transport, e.g. "npx -y <package>"
+  tool_name: ""                       # the search tool's name on that server
+  query_argument: query
+  supports_date_filter: false         # if false, eval leak-check is the only guard
+
+summary:
+  enabled: true
+  use_for_forecast: false   # true = forecasters see the 2-paragraph summary instead of the full report
+
+ensemble:
+  # Total number of forecasters. They are spread round-robin across `members`
+  # (3 -> one per family, 5 -> 2,2,1 ...). Each one runs the full critique loop.
+  total_forecasters: 3
+  members:
+    - {name: claude, model: openrouter/anthropic/claude-sonnet-4.5}
+    - {name: gpt, model: openrouter/openai/gpt-5}
+    - {name: gemini, model: openrouter/google/gemini-2.5-pro}
+
+prompt_style: structured    # structured = template (a)-(h) | simple
+
+critique:
+  enabled: true
+  rounds: 2                 # draft -> (critic -> response) x rounds
+
+checks:
+  verification: flag        # off | flag (mark & exclude) | verify (quick search, needs research tools)
+  arithmetic: true          # recompute counts/ratios/percentages in code
+  consistency: true         # evidence direction vs. number movement
+  max_format_retries: 2     # re-ask the model when its output fails validation
+
+mixture:
+  numeric: false            # numeric/date: model gives 1-4 scenarios, code computes percentiles
+  binary_time_to_event: false   # "before date" binaries: P(yes) = CDF(resolution date)
+
+aggregation:
+  binary: weighted_logodds  # median | mean | weighted_logodds
+  multiple_choice: mean     # mean | median | weighted_logodds (log pooling)
+  numeric: weighted_quantile_mean   # weighted_quantile_mean | median_quantile
+  extremize: 1.0            # >1 pushes away from 50% (log-odds multiplier)
+  weights: {}               # {member_name: weight}; empty = equal. Fitted by `eval.py ensemble`.
+  min_weight: 0.05          # floor so no model is ever removed entirely
+
+output:
+  log_dir: logs/advanced
+  arabic_summary: true      # extra cheap call: Arabic summary in the LOCAL log only (never posted)
+  min_probability: 0.01     # binary clamp
+  max_probability: 0.99
+  mc_min_probability: 0.01  # each multiple-choice option gets at least 1%
+
+eval:
+  data_dir: eval_data
+  runs_dir: eval_runs
+  bootstrap_samples: 10000
+  significance: 0.05
