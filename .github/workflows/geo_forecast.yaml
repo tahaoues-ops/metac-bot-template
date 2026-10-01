@@ -1,0 +1,69 @@
+name: Geopolitical forecast (manual)
+
+# Runs ONLY when you click "Run workflow". Never publishes to Metaculus:
+# it does not receive METACULUS_TOKEN at all.
+on:
+  workflow_dispatch:
+    inputs:
+      question:
+        description: "Yes/no question (leave empty to use questions/example_question.json)"
+        required: false
+        default: ""
+      resolution_date:
+        description: "Resolution date YYYY-MM-DD (required if you wrote a question)"
+        required: false
+        default: ""
+      resolution_criteria:
+        description: "Exactly what counts as YES (optional)"
+        required: false
+        default: ""
+      runs:
+        description: "Number of independent forecasts (1-5)"
+        required: false
+        default: "3"
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  forecast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install requests python-dotenv
+      - name: Run forecaster
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GEO_MODEL: ${{ vars.GEO_MODEL }}
+          # Inputs are passed through env (not pasted into the script) so that
+          # quotes or special characters in your question can't break the command.
+          IN_QUESTION: ${{ inputs.question }}
+          IN_DATE: ${{ inputs.resolution_date }}
+          IN_CRITERIA: ${{ inputs.resolution_criteria }}
+          IN_RUNS: ${{ inputs.runs }}
+        run: |
+          [ -z "$GEO_MODEL" ] && unset GEO_MODEL
+          args=(--runs "${IN_RUNS:-3}")
+          if [ -n "$IN_QUESTION" ]; then
+            args+=(--question "$IN_QUESTION" --resolution-date "$IN_DATE")
+            [ -n "$IN_CRITERIA" ] && args+=(--resolution-criteria "$IN_CRITERIA")
+          else
+            args+=(--question-file questions/example_question.json)
+          fi
+          python geo_forecaster.py "${args[@]}"
+      - name: Save results as a downloadable file
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: geo-forecast-results
+          path: results/
+          if-no-files-found: ignore
+          retention-days: 30

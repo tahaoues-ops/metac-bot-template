@@ -10,6 +10,13 @@ In this project are 2 files:
 
 Join the conversation about bot creation, get support, and follow updates on the [Metaculus Discord](https://discord.com/invite/NJgCC2nDfh) 'build a forecasting bot' channel.
 
+## Geopolitical forecaster (custom questions, manual, no publishing)
+`geo_forecaster.py` forecasts a yes/no question you write yourself, searches recent news, and saves an Arabic report with probability, evidence and sources to `results/`. It never publishes to Metaculus and only needs `OPENROUTER_API_KEY`. Run it from `Actions → Geopolitical forecast (manual)`, or locally:
+```bash
+python geo_forecaster.py --question-file questions/example_question.json
+```
+Step-by-step guide in Arabic: [GEO_FORECASTER_AR.md](GEO_FORECASTER_AR.md). In this fork the automatic schedules of the tournament workflows are turned off; everything runs manually.
+
 ## 30min Video Tutorial
 This tutorial shows you how to set up our template bot so you can start forecasting in the tournament.
 

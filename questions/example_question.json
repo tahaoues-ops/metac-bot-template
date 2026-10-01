@@ -1,0 +1,6 @@
+{
+  "question": "Will Russia and Ukraine sign a formal ceasefire or peace agreement before December 31, 2026?",
+  "resolution_date": "2026-12-31",
+  "resolution_criteria": "Resolves YES if, between today and December 31, 2026 (inclusive), official representatives of both the Russian and Ukrainian governments sign a written agreement establishing a general ceasefire or ending the war, as reported by at least two major international news outlets (e.g. Reuters, AP, BBC). Local, humanitarian, or energy-only truces do not count. Otherwise resolves NO.",
+  "background": "Test question for the geopolitical forecaster."
+}
